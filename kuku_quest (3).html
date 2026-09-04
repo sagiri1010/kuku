@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>くくクエスト</title>
+
+<!-- 見た目を丸くて可愛いフォントにするため、Googleフォントを読み込んでいます -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
+
+<style>
+  /* =====================================================
+     ▼ 見た目(デザイン)の設定はすべてここに書いています。
+       色や文字サイズを変えたい場合はここを触ればOKです。
+     ===================================================== */
+  :root{
+    --color-bg-top:#9AD8FF;      /* 空の色(上) */
+    --color-bg-bottom:#BFE8A6;   /* 地面の色(下) */
+    --color-card:#FFFBF0;        /* カード(白いパネル)の色 */
+    --color-accent:#FF9640;      /* オレンジ(ボタンなど) */
+    --color-accent-dark:#E67A20;
+    --color-text:#2B2140;        /* 基本の文字色 */
+    --color-good:#4CAF50;        /* 正解の色 */
+    --color-bad:#E85555;         /* 不正解の色 */
+    font-family: "M PLUS Rounded 1c", sans-serif;
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    background: linear-gradient(180deg, var(--color-bg-top) 0%, var(--color-bg-top) 40%, var(--color-bg-bottom) 100%);
+    color:var(--color-text);
+    display:flex;
+    justify-content:center;
+    padding:16px;
+  }
+
+  #app{
+    width:100%;
+    max-width:520px;
+  }
+
+  /* ---------- ヘッダー ---------- */
+  .header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    row-gap:6px;
+    margin-bottom:8px;
+  }
+  .header h1{
+    font-size:22px;
+    font-weight:800;
+    margin:0;
+    color:#fff;
+    text-shadow: 0 2px 0 rgba(0,0,0,0.15);
+  }
+  .header-buttons{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+  }
+  .header-buttons button{
+    background:rgba(255,255,255,0.85);
+    border:none;
+    border-radius:10px;
+    padding:6px 10px;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+    color:var(--color-text);
+  }
+  .header-buttons button.active{
+    background:var(--color-accent);
+    color:#fff;
+  }
+
+  /* ---------- スコアバー ---------- */
+  .status-bar{
+    display:flex;
+    justify-content:space-between;
+    background:rgba(255,255,255,0.85);
+    border-radius:14px;
+    padding:8px 14px;
+    margin-bottom:8px;
+    font-weight:700;
+    font-size:14px;
+  }
+
+  /* ---------- 進捗バー(旧マップの代わり) ----------
+     以前はマス目のマップを別ブロックで表示していたが、バトル画面と
+     離れて見づらいという指摘があったため、細い進捗バーに変更した。
+     バトル画面のすぐ上に置くことで、画面のまとまりを良くしている。
+     バーの上にボス(👑)・ボーナス(🎁)の位置を目印として表示する。
+  */
+  .progress-wrap{
+    background: var(--color-card);
+    border-radius:16px;
+    padding:12px 14px 10px;
+    margin-bottom:10px;
+    box-shadow:0 4px 0 rgba(0,0,0,0.08);
+  }
+  .progress-track{
+    position:relative;
+    height:14px;
+    background:#EFEAD8;
+    border-radius:8px;
+    margin:14px 4px 4px; /* 上に目印アイコンがはみ出るための余白 */
+  }
+  .progress-fill{
+    height:100%;
+    background:var(--color-accent);
+    border-radius:8px;
+    transition:width 0.4s ease;
+  }
+  /* ボス・ボーナスの目印アイコン(バーの上に絶対配置) */
+  .progress-marker{
+    position:absolute;
+    top:50%;
+    transform:translate(-50%, -50%);
+    font-size:16px;
+    line-height:1;
+  }
+  .progress-marker.passed{ opacity:0.35; } /* 通過済みは薄く表示 */
+  /* スタート・ゴールの目印(固定位置) */
+  .progress-endpoint{
+    position:absolute;
+    top:50%;
+    transform:translate(-50%, -50%);
+    font-size:14px;
+  }
+  /* 今の位置を示すキャラアイコン */
+  .progress-hero{
+    position:absolute;
+    top:50%;
+    transform:translate(-50%, -85%);
+    font-size:20px;
+    transition:left 0.4s ease;
+  }
+  .progress-label{
+    display:flex;
+    justify-content:space-between;
+    font-size:11px;
+    font-weight:700;
+    color:#7A7266;
+    margin-top:6px;
+  }
+
+  /* ---------- バトル画面 ---------- */
+  .battle-wrap{
+    position:relative; /* 一時停止オーバーレイの基準位置にするため */
+    background: var(--color-card);
+    border-radius:20px;
+    padding:18px;
+    text-align:center;
+    box-shadow:0 6px 0 rgba(0,0,0,0.08);
+    min-height:320px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+  }
+
+  .monster-area{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+  }
+  .monster-area img{
+    width:120px;
+    height:120px;
+    object-fit:contain;
+    filter: drop-shadow(0 6px 4px rgba(0,0,0,0.15));
+  }
+  .monster-area img.boss-img{ width:150px; height:150px; }
+  .monster-label{
+    font-size:13px;
+    font-weight:700;
+    background:rgba(0,0,0,0.06);
+    padding:2px 10px;
+    border-radius:10px;
+  }
+
+  .intro-text{
+    font-size:20px;
+    font-weight:800;
+    margin-top:20px;
+  }
+
+  .question-box{
+    font-size:34px;
+    font-weight:800;
+    margin:10px 0;
+  }
+
+  /* 制限時間バー(pxで幅を管理して、一時停止時にそのまま止められるようにしている) */
+  .timer-outer{
+    width:100%;
+    height:10px;
+    background:#E5E0D0;
+    border-radius:6px;
+    overflow:hidden;
+    margin-bottom:14px;
+  }
+  .timer-inner{
+    height:100%;
+    background:var(--color-accent);
+  }
+
+  .answers{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:10px;
+  }
+  .answer-btn{
+    font-size:24px;
+    font-weight:800;
+    padding:16px 0;
+    border-radius:14px;
+    border:none;
+    background:#fff;
+    box-shadow:0 4px 0 rgba(0,0,0,0.15);
+    cursor:pointer;
+    color:var(--color-text);
+  }
+  .answer-btn:active{ transform:translateY(2px); box-shadow:0 2px 0 rgba(0,0,0,0.15); }
+  .answer-btn.correct{ background:var(--color-good); color:#fff; }
+  .answer-btn.wrong{ background:var(--color-bad); color:#fff; }
+
+  .result-text{
+    font-size:22px;
+    font-weight:800;
+    margin:10px 0;
+  }
+  .result-text.good{ color:var(--color-good); }
+  .result-text.bad{ color:var(--color-bad); }
+
+  .start-btn{
+    background:var(--color-accent);
+    color:#fff;
+    border:none;
+    border-radius:14px;
+    padding:12px 20px;
+    font-size:16px;
+    font-weight:800;
+    box-shadow:0 4px 0 var(--color-accent-dark);
+    cursor:pointer;
+  }
+  .start-btn:active{ transform:translateY(2px); box-shadow:0 2px 0 var(--color-accent-dark); }
+
+  /* ---------- 一時停止オーバーレイ ---------- */
+  .pause-overlay{
+    position:absolute;
+    inset:0;
+    background:rgba(20,15,35,0.6);
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:20px;
+    font-weight:800;
+    border-radius:20px;
+    z-index:10;
+  }
+  .hidden{ display:none; }
+
+  /* ---------- ゴール画面 ---------- */
+  .goal-wrap{
+    text-align:center;
+    padding:30px 10px;
+  }
+  .goal-wrap h2{ font-size:26px; }
+
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="header">
+    <h1>くくクエスト</h1>
+    <div class="header-buttons">
+      <button id="pauseBtn">⏸ 一時停止</button>
+      <button id="muteBtn">🔊 音</button>
+      <button id="resetBtn">さいしょから</button>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <span id="scoreText">スコア: 0</span>
+    <span id="comboText">れんぞく正解: 0</span>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-track" id="progressTrack"></div>
+    <div class="progress-label">
+      <span id="progressText">0 / 25 マス</span>
+      <span>👑ボス　🎁ボーナス</span>
+    </div>
+  </div>
+
+  <div class="battle-wrap" id="battleWrap">
+    <div class="pause-overlay hidden" id="pauseOverlay">⏸ 一時停止中</div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   ▼▼▼ 仕様説明(このゲームの全体像) ▼▼▼
+
+   【ゲーム内容】
+   すごろく形式で九九を練習するゲームです。
+   全25マスあり、1マスごとに九九の問題(4択)が出ます。
+   正解すると1マス進み、不正解・時間切れだと1マス後退します。
+   7マスごとに「ボスマス」があり、少し難しい段(6〜9)が出て、
+   制限時間も短めになります。
+   ランダムで「ボーナスマス」も混ざっていて、そこは制限時間なし、
+   正解すると2マス進めます(失敗してもペナルティなし)。
+   全25マスをクリアするとゴールです。
+
+   【進行方法(自動進行+一時停止)】
+   このゲームはボタンを押さなくても自動で進みます。
+     モンスターが現れる → (少し待つ) → 問題が出る(制限時間あり)
+     → 答える → 結果表示 → (少し待つ) → 次のマスへ …
+   待ち時間はすべてランダムにしていて、毎回テンポが変わるようにしています。
+   画面右上の「⏸ 一時停止」を押すといつでも止められます(出題中の残り時間も
+   そのまま止まります)。もう一度押すと、止めたところから再開します。
+
+   【進捗表示について】
+   以前はマス目を並べた大きなマップを表示していましたが、バトル画面と
+   離れて見づらいという指摘を受け、バトル画面のすぐ上に「細い進捗バー」
+   を置く形に変更しました。バーの上にボス(👑)・ボーナス(🎁)の位置が
+   目印として表示され、今の位置はキャラのアイコンで示されます。
+
+   【重要な修正履歴(不具合の原因と直した内容)】
+   1. 「モンスターが現れた」の画像と、実際の問題画面のモンスター画像が
+      違って見える不具合 → 原因は、登場演出と問題画面でそれぞれ別々に
+      モンスターをランダム抽選していたため。今は「出題する九九の内容」を
+      マスに到着した瞬間に1回だけ決めて、その情報を登場演出にも問題にも
+      使うように直した(makeQuestion を startNextTurn 内で1回だけ呼ぶ)。
+   2. バーの減り具合と、正解/不正解の判定タイミングがズレる不具合、
+      および一時停止ボタンが効かない不具合 → どちらも原因は同じで、
+      「自動で次に進むタイマー(scheduleAuto)」で新しいタイマーを
+      予約するときに、前のタイマーを止め忘れていたため。早く回答した
+      場合などに古いタイマーが裏で生き残ってしまい、後から勝手に発動
+      していた。scheduleAuto の中で「前のタイマーが残っていたら必ず
+      先に止める」処理を追加して修正した。
+
+   【保存について】
+   window.storage というブラウザの保存機能を使って、
+   「今どのマスにいるか」「マップの並び(ボス・ボーナスの位置)」
+   「スコア」を保存しています。次回このページを開いたときも
+   続きから遊べます。「さいしょから」ボタンを押すと、保存データを
+   消して最初からやり直せます。
+
+   【画像について】
+   GitHub上の画像(SVG)をそのまま読み込んで使っています。
+   IMAGE_BASE + ファイル名 のURLで画像を表示しています。
+   もし画像が表示されない場合は、GitHubのリポジトリが公開設定に
+   なっているか、ブランチ名が "main" かどうかを確認してください。
+   (画像が読み込めない場合は絵文字で代わりに表示するようにしています)
+
+   【段とモンスターの対応(CONFIG.tableToImage)】
+   ここを書き換えると、何の段にどのモンスターを出すか変更できます。
+
+   【ファイル構成(このHTMLの中の並び順)】
+   1. CONFIG          … 設定値をまとめた場所(ここを変えれば挙動が変わる)
+   2. state             … 今のゲームの状態を持つ変数
+   3. storage関連関数    … 保存・読み込み
+   4. マップ生成関数
+   5. 問題生成関数
+   6. 自動進行タイマー(scheduleAuto等) … 一時停止の仕組みの土台
+   7. 効果音
+   8. 描画(render)関数  … 画面に反映する処理
+   9. イベント処理        … ゲームの流れそのもの
+   10. 初期化
+   ===================================================================== */
+
+
+  /* ---------------------------------------------------------------
+     1. CONFIG : 調整したい数値・対応表はすべてここにまとめています
+     --------------------------------------------------------------- */
+  const CONFIG = {
+    // GitHub上の画像が置いてある場所(ここのURLは念のため確認してください)
+    IMAGE_BASE: "https://raw.githubusercontent.com/sagiri1010/kuku/main/",
+
+    // マップの長さ(マスの数)
+    MAP_LENGTH: 25,
+
+    // 何マスごとにボスを置くか
+    BOSS_INTERVAL: 7,
+
+    // ボーナスマスをいくつ置くか
+    BONUS_COUNT: 4,
+
+    // 制限時間(ミリ秒)。ランダムに幅を持たせてテンポを変える
+    // ※以前「時間が短すぎる」という指摘があったため、少し余裕を持たせている
+    TIME_NORMAL_MIN: 5000,
+    TIME_NORMAL_MAX: 8000,
+    TIME_BOSS_MIN: 4000,
+    TIME_BOSS_MAX: 6000,
+
+    // 自動進行の「待ち時間」もランダムにしてテンポを変える
+    INTRO_DELAY_MIN: 700,   // モンスター登場→出題 までの待ち時間(ミリ秒)
+    INTRO_DELAY_MAX: 1400,
+    RESULT_DELAY_MIN: 1200, // 結果表示→次のマス までの待ち時間(ミリ秒)
+    RESULT_DELAY_MAX: 1900,
+
+    // 段(1〜9)ごとに、どのモンスター画像を出すか
+    tableToImage: {
+      1: "character_teki.svg",
+      2: "character_monster_slime_green.svg",
+      3: "character_monster_kinoko_red.svg",
+      4: "character_monster_ghost_white.svg",
+      5: "character_monster_treant_02_green.svg",
+      6: "character_monster_majo_02_orange.svg",
+      7: "character_monster_frankenstein_02_blue.svg",
+      8: "character_monster_yeti_01_blue.svg",
+      9: "character_monster_dragon_01_yellow.svg",
+    },
+    tableToName: {
+      1: "ざこてき", 2: "スライム", 3: "キノコ", 4: "ゴースト",
+      5: "トレント", 6: "まじょ", 7: "フランケン", 8: "イエティ", 9: "ドラゴン",
+    },
+
+    BOSS_IMAGE: "character_monster_mimic_purple.svg",
+    BOSS_NAME: "ミミック(ボス)",
+    BONUS_IMAGE: "character_monster_hi_blue.svg",
+    HERO_IMAGE: "character_heishi_armor_02_01_blue.svg",
+
+    // 保存に使うキー名。仕様を大きく変えたらVERSIONを上げると
+    // 古い保存データが自動的に無視されて事故を防げます。
+    STORAGE_KEY: "kuku_quest_state",
+    SAVE_VERSION: 1,
+  };
+
+
+  /* ---------------------------------------------------------------
+     2. state : 今このゲームがどんな状態かを持っておく変数
+     --------------------------------------------------------------- */
+  let state = {
+    version: CONFIG.SAVE_VERSION,
+    cellTypes: [],     // 各マスが 'normal' / 'boss' / 'bonus' のどれか
+    currentStage: 0,   // 今何マス目まで進んでいるか(0〜MAP_LENGTH)
+    score: 0,
+    combo: 0,
+    bestCombo: 0,
+    muted: false,
+  };
+
+  // 今出題中の問題の情報(マスに着いた瞬間に1回だけ決めて、
+  // 「モンスター登場」画面と「問題」画面の両方でこれを使う)
+  let currentQuestion = null; // {a, b, answer, options, tableForImage, isBoss}
+  let answered = false;        // 二重回答防止フラグ
+  let isPaused = false;        // 一時停止中かどうか
+
+  // 制限時間バー用(一時停止時にそのまま止めるために覚えておく値)
+  let questionTimerActive = false; // 今「出題中の制限時間バー」が動いているか
+
+
+  /* ---------------------------------------------------------------
+     3. storage関連関数 : 保存・読み込み
+     --------------------------------------------------------------- */
+  async function loadState(){
+    try{
+      const res = await window.storage.get(CONFIG.STORAGE_KEY);
+      if (res && res.value){
+        const data = JSON.parse(res.value);
+        if (data.version === CONFIG.SAVE_VERSION){
+          return data;
+        }
+      }
+    }catch(e){
+      // 保存データがまだ無い場合はここに来ます(初回プレイ)。エラーではありません。
+    }
+    return null;
+  }
+
+  async function saveState(){
+    try{
+      await window.storage.set(CONFIG.STORAGE_KEY, JSON.stringify(state));
+    }catch(e){
+      console.error("保存に失敗しました:", e);
+    }
+  }
+
+  async function clearState(){
+    try{
+      await window.storage.delete(CONFIG.STORAGE_KEY);
+    }catch(e){
+      // もともと無い場合はエラーになるが無視してよい
+    }
+  }
+
+
+  /* ---------------------------------------------------------------
+     4. マップ生成関数 : ボス・ボーナスマスの配置を決める
+     --------------------------------------------------------------- */
+  function generateMap(){
+    const types = new Array(CONFIG.MAP_LENGTH).fill("normal");
+
+    // ボスマスを一定間隔で配置(例: 7,14,21マス目)
+    for (let i = CONFIG.BOSS_INTERVAL - 1; i < CONFIG.MAP_LENGTH; i += CONFIG.BOSS_INTERVAL){
+      types[i] = "boss";
+    }
+
+    // ボーナスマスをランダムに配置(ボスマスと重ならないように)
+    let placed = 0;
+    let safetyCounter = 0; // 無限ループ防止
+    while (placed < CONFIG.BONUS_COUNT && safetyCounter < 500){
+      safetyCounter++;
+      const idx = Math.floor(Math.random() * (CONFIG.MAP_LENGTH - 1)); // 最後のマスはボーナスにしない(達成感のため)
+      if (types[idx] === "normal"){
+        types[idx] = "bonus";
+        placed++;
+      }
+    }
+    return types;
+  }
+
+
+  /* ---------------------------------------------------------------
+     5. 問題生成関数
+     --------------------------------------------------------------- */
+  function randInt(min, max){
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function makeQuestion(cellType){
+    const isBoss = cellType === "boss";
+    // ボスマスは6〜9の段、それ以外は1〜9の段からランダム
+    const a = isBoss ? randInt(6, 9) : randInt(1, 9);
+    const b = randInt(1, 9);
+    const answer = a * b;
+
+    // 不正解の選択肢(近い数字にして、当てずっぽうを少し防ぐ)
+    const candidates = new Set();
+    const tryAdd = (v) => { if (v > 0 && v !== answer) candidates.add(v); };
+    tryAdd((a + 1) * b);
+    tryAdd((a - 1) * b);
+    tryAdd(a * (b + 1));
+    tryAdd(a * (b - 1));
+    tryAdd(answer + a);
+    tryAdd(answer - a);
+    tryAdd(answer + b);
+    tryAdd(answer - b);
+
+    const candidateList = Array.from(candidates);
+    // シャッフルして3つ選ぶ
+    for (let i = candidateList.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [candidateList[i], candidateList[j]] = [candidateList[j], candidateList[i]];
+    }
+    let wrongOptions = candidateList.slice(0, 3);
+    // 万が一候補が足りない場合はランダムな数で埋める
+    while (wrongOptions.length < 3){
+      const v = answer + randInt(-10, 10);
+      if (v > 0 && v !== answer && !wrongOptions.includes(v)){
+        wrongOptions.push(v);
+      }
+    }
+
+    const options = [...wrongOptions, answer];
+    for (let i = options.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [options[i], options[j]] = [options[j], options[i]];
+    }
+
+    return {
+      a, b, answer, options,
+      tableForImage: a,
+      isBoss,
+    };
+  }
+
+
+  /* ---------------------------------------------------------------
+     6. 自動進行タイマー(一時停止の仕組みの土台)
+        -----------------------------------------------------------
+        このゲームは「モンスター登場→出題→結果→次へ」を自動で進める。
+        その「次に進むまでの待ち時間」を、ここで一括管理している。
+        一時停止したときは、残り時間を覚えておいて、再開したときに
+        その残り時間からもう一度カウントを始める。
+
+        ★重要: scheduleAuto を呼ぶときは、必ず「前の予約が残っていない
+        か」を確認して、残っていたら先に止めてから新しく予約する。
+        これを忘れると、前の予約が裏で生き残ったまま動き続けてしまい、
+        後から関係ないタイミングで勝手に発動する不具合が起きる
+        (実際にこの不具合が発生したため、下記のように必ず止めるようにした)。
+     --------------------------------------------------------------- */
+  const autoTimer = {
+    timeoutId: null,
+    callback: null,   // 待ち時間が終わったら呼ぶ関数
+    remainingMs: 0,   // 残り時間
+    startedAt: 0,      // 今回のカウントを開始した時刻
+    running: false,    // 今カウント中かどうか
+  };
+
+  // callbackを delayMs ミリ秒後に実行する予約をする
+  function scheduleAuto(callback, delayMs){
+    // 前の予約が残っていたら、暴走を防ぐため必ず先に止めてから予約し直す
+    if (autoTimer.timeoutId !== null){
+      clearTimeout(autoTimer.timeoutId);
+      autoTimer.timeoutId = null;
+      autoTimer.running = false;
+    }
+    autoTimer.callback = callback;
+    autoTimer.remainingMs = delayMs;
+    startAutoCountdown();
+  }
+
+  function startAutoCountdown(){
+    autoTimer.startedAt = Date.now();
+    autoTimer.running = true;
+    autoTimer.timeoutId = setTimeout(() => {
+      autoTimer.running = false;
+      autoTimer.timeoutId = null;
+      const cb = autoTimer.callback;
+      autoTimer.callback = null;
+      if (cb) cb();
+    }, autoTimer.remainingMs);
+  }
+
+  // 一時停止: 今動いているタイマーを止めて、残り時間を覚えておく
+  function pauseAutoTimer(){
+    if (!autoTimer.running) return;
+    clearTimeout(autoTimer.timeoutId);
+    autoTimer.timeoutId = null;
+    const elapsed = Date.now() - autoTimer.startedAt;
+    autoTimer.remainingMs = Math.max(0, autoTimer.remainingMs - elapsed);
+    autoTimer.running = false;
+  }
+
+  // 再開: 覚えておいた残り時間からもう一度カウントを始める
+  function resumeAutoTimer(){
+    if (autoTimer.callback === null) return; // 予約が無ければ何もしない
+    startAutoCountdown();
+  }
+
+
+  /* ---------------------------------------------------------------
+     7. 効果音(簡易) : 外部ファイル無しでビープ音を鳴らす
+     --------------------------------------------------------------- */
+  let audioCtx = null;
+  function playTone(freq, duration){
+    if (state.muted) return;
+    try{
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.frequency.value = freq;
+      osc.type = "square";
+      gain.gain.value = 0.06;
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration / 1000);
+    }catch(e){ /* 音が出せない環境は無視 */ }
+  }
+  function playCorrectSound(){ playTone(880, 150); }
+  function playWrongSound(){ playTone(220, 250); }
+  function playGoalSound(){ playTone(660, 400); }
+
+
+  /* ---------------------------------------------------------------
+     8. 描画(render)関数
+     --------------------------------------------------------------- */
+  function imgUrl(filename){
+    return CONFIG.IMAGE_BASE + filename;
+  }
+
+  // 画像読み込み失敗時に絵文字へ差し替える(画像URLが間違っていてもゲームを止めないため)
+  function withFallback(imgEl, emoji){
+    imgEl.onerror = function(){
+      imgEl.onerror = null;
+      const span = document.createElement("span");
+      span.style.fontSize = "60px";
+      span.textContent = emoji;
+      imgEl.replaceWith(span);
+    };
+  }
+
+  function renderStatusBar(){
+    document.getElementById("scoreText").textContent = "スコア: " + state.score;
+    document.getElementById("comboText").textContent = "れんぞく正解: " + state.combo;
+  }
+
+  // 進捗バーを描画する(以前のマス目マップの代わり)
+  function renderProgress(){
+    const track = document.getElementById("progressTrack");
+    track.innerHTML = "";
+
+    const pct = (state.currentStage / CONFIG.MAP_LENGTH) * 100;
+
+    // 進んだ分の色を塗る
+    const fill = document.createElement("div");
+    fill.className = "progress-fill";
+    fill.style.width = pct + "%";
+    track.appendChild(fill);
+
+    // スタート・ゴールの固定目印
+    const startMark = document.createElement("span");
+    startMark.className = "progress-endpoint";
+    startMark.style.left = "0%";
+    startMark.textContent = "🚩";
+    track.appendChild(startMark);
+
+    const goalMark = document.createElement("span");
+    goalMark.className = "progress-endpoint";
+    goalMark.style.left = "100%";
+    goalMark.textContent = "🏁";
+    track.appendChild(goalMark);
+
+    // ボス・ボーナスの目印(通過済みは薄く表示)
+    state.cellTypes.forEach((type, idx) => {
+      if (type === "normal") return;
+      const marker = document.createElement("span");
+      marker.className = "progress-marker" + (idx < state.currentStage ? " passed" : "");
+      marker.style.left = (((idx + 1) / CONFIG.MAP_LENGTH) * 100) + "%";
+      marker.textContent = type === "boss" ? "👑" : "🎁";
+      track.appendChild(marker);
+    });
+
+    // 今の位置を示すキャラアイコン
+    const hero = document.createElement("span");
+    hero.className = "progress-hero";
+    hero.style.left = pct + "%";
+    hero.textContent = "🧑‍⚔️";
+    track.appendChild(hero);
+
+    document.getElementById("progressText").textContent = state.currentStage + " / " + CONFIG.MAP_LENGTH + " マス";
+  }
+
+  // バトル画面: 「モンスター登場」の演出
+  // ※画像は currentQuestion (呼び出し元で先に決めてある) を使う。
+  //   ここで新しくランダム抽選をしてしまうと、問題画面と絵が食い違うので注意。
+  function renderIntro(cellType, question){
+    const wrap = document.getElementById("battleWrap");
+    const isBoss = cellType === "boss";
+    const isBonus = cellType === "bonus";
+    const imageFile = isBoss ? CONFIG.BOSS_IMAGE
+                     : isBonus ? CONFIG.BONUS_IMAGE
+                     : CONFIG.tableToImage[question.tableForImage];
+    const label = isBoss ? "ボスが あらわれた!" : (isBonus ? "ボーナスマス!" : "モンスターが あらわれた!");
+
+    wrap.innerHTML = `
+      <div class="monster-area">
+        <img class="${isBoss ? 'boss-img' : ''}" id="introImg" src="${imgUrl(imageFile)}">
+        <div class="intro-text">${label}</div>
+      </div>
+      <div class="pause-overlay hidden" id="pauseOverlay">⏸ 一時停止中</div>
+    `;
+    const img = document.getElementById("introImg");
+    withFallback(img, isBoss ? "👹" : (isBonus ? "🎁" : "👾"));
+    syncPauseOverlay();
+  }
+
+  // バトル画面: 実際の問題を表示する(currentQuestionはこの時点で決まっている)
+  function renderQuestion(){
+    const wrap = document.getElementById("battleWrap");
+    const q = currentQuestion;
+    const isBonus = state.cellTypes[state.currentStage] === "bonus";
+    // ボス > ボーナス > 通常 の優先順で画像・名前を決める。
+    // (以前はここで isBonus を考慮しておらず、ボーナスマスの問題画面だけ
+    //  通常モンスターの画像が出てしまっていたので、判定を追加した)
+    const imageFile = q.isBoss ? CONFIG.BOSS_IMAGE
+                     : isBonus ? CONFIG.BONUS_IMAGE
+                     : CONFIG.tableToImage[q.tableForImage];
+    const monsterName = q.isBoss ? CONFIG.BOSS_NAME
+                       : isBonus ? "ボーナス"
+                       : CONFIG.tableToName[q.tableForImage];
+
+    wrap.innerHTML = `
+      <div class="monster-area">
+        <img class="${q.isBoss ? 'boss-img' : ''}" id="qImg" src="${imgUrl(imageFile)}">
+        <div class="monster-label">${monsterName}</div>
+      </div>
+      <div class="question-box">${q.a} × ${q.b} = ?</div>
+      <div class="timer-outer" style="visibility:${isBonus ? 'hidden' : 'visible'}">
+        <div class="timer-inner" id="timerInner"></div>
+      </div>
+      <div class="answers" id="answersArea"></div>
+      <div class="pause-overlay hidden" id="pauseOverlay">⏸ 一時停止中</div>
+    `;
+    const img = document.getElementById("qImg");
+    withFallback(img, q.isBoss ? "👹" : "👾");
+
+    const answersArea = document.getElementById("answersArea");
+    q.options.forEach((opt) => {
+      const btn = document.createElement("button");
+      btn.className = "answer-btn";
+      btn.textContent = opt;
+      btn.addEventListener("click", () => handleAnswer(opt, btn));
+      answersArea.appendChild(btn);
+    });
+
+    // タイマー開始(ボーナスマスは制限時間なし)
+    answered = false;
+    if (!isBonus){
+      const duration = q.isBoss
+        ? randInt(CONFIG.TIME_BOSS_MIN, CONFIG.TIME_BOSS_MAX)
+        : randInt(CONFIG.TIME_NORMAL_MIN, CONFIG.TIME_NORMAL_MAX);
+      questionTimerActive = true;
+
+      const timerInner = document.getElementById("timerInner");
+      const outerWidthPx = timerInner.parentElement.clientWidth;
+      // pxで幅を管理する(一時停止で凍結・再開するときに単位を揃えるため)
+      timerInner.style.transition = "none";
+      timerInner.style.width = outerWidthPx + "px";
+      requestAnimationFrame(() => {
+        timerInner.style.transition = `width ${duration}ms linear`;
+        timerInner.style.width = "0px";
+      });
+
+      scheduleAuto(() => {
+        questionTimerActive = false;
+        if (!answered) handleAnswer(null, null); // 時間切れ = 不正解扱い
+      }, duration);
+    } else {
+      questionTimerActive = false;
+    }
+    syncPauseOverlay();
+  }
+
+  // 結果表示(正解/不正解)
+  function renderResult(isCorrect, isBonus){
+    const wrap = document.getElementById("battleWrap");
+    const text = isCorrect ? "せいかい!" : (isBonus ? "ざんねん(ペナルティなし)" : "ざんねん…1マスもどる");
+    const cls = isCorrect ? "good" : "bad";
+    const resultDiv = document.createElement("div");
+    resultDiv.className = "result-text " + cls;
+    resultDiv.textContent = text;
+    wrap.appendChild(resultDiv);
+  }
+
+  function renderGoal(){
+    const wrap = document.getElementById("battleWrap");
+    wrap.innerHTML = `
+      <div class="goal-wrap">
+        <h2>🎉 クリア！ 🎉</h2>
+        <p>スコア: ${state.score}</p>
+        <p>さいだい れんぞく正解: ${state.bestCombo}</p>
+        <button class="start-btn" id="playAgainBtn">もういちど あそぶ</button>
+      </div>
+    `;
+    document.getElementById("playAgainBtn").addEventListener("click", async () => {
+      await startNewGame();
+    });
+  }
+
+  // 一時停止の見た目(オーバーレイの表示/非表示)を、今の状態に合わせる
+  function syncPauseOverlay(){
+    const overlay = document.getElementById("pauseOverlay");
+    if (!overlay) return;
+    overlay.classList.toggle("hidden", !isPaused);
+  }
+
+
+  /* ---------------------------------------------------------------
+     9. イベント処理(ゲームの流れそのもの)
+     --------------------------------------------------------------- */
+
+  // 新しいマスに到着したときの入り口
+  function startNextTurn(){
+    if (state.currentStage >= CONFIG.MAP_LENGTH){
+      playGoalSound();
+      renderGoal();
+      renderProgress();
+      renderStatusBar();
+      saveState();
+      return;
+    }
+    renderProgress();
+    renderStatusBar();
+    const cellType = state.cellTypes[state.currentStage];
+
+    // ここで先に問題の内容(どの段のモンスターか)を1回だけ決める。
+    // これを「モンスター登場」演出と「問題」画面の両方で使い回すことで、
+    // 表示されるモンスターが必ず一致するようにしている。
+    currentQuestion = makeQuestion(cellType);
+    renderIntro(cellType, currentQuestion);
+
+    // 少し待ってから自動で出題フェーズへ(待ち時間はランダム)
+    const delay = randInt(CONFIG.INTRO_DELAY_MIN, CONFIG.INTRO_DELAY_MAX);
+    scheduleAuto(beginQuestionPhase, delay);
+  }
+
+  // 出題フェーズ(モンスター登場の演出のあとに呼ばれる)
+  // currentQuestion はすでに startNextTurn で決まっているので、表示するだけでよい。
+  function beginQuestionPhase(){
+    renderQuestion();
+  }
+
+  // 回答したときの処理(選択肢クリック、または時間切れ)
+  function handleAnswer(selected, btnEl){
+    if (answered) return;
+    answered = true;
+    questionTimerActive = false;
+
+    const isCorrect = selected === currentQuestion.answer;
+    const cellType = state.cellTypes[state.currentStage];
+    const isBonus = cellType === "bonus";
+
+    // ボタンの色を変えて、どれが正解だったか分かるようにする
+    if (btnEl){
+      const allBtns = document.querySelectorAll(".answer-btn");
+      allBtns.forEach((b) => {
+        b.disabled = true;
+        if (Number(b.textContent) === currentQuestion.answer){
+          b.classList.add("correct");
+        } else if (b === btnEl){
+          b.classList.add("wrong");
+        }
+      });
+    }
+
+    if (isCorrect){
+      playCorrectSound();
+      state.combo += 1;
+      if (state.combo > state.bestCombo) state.bestCombo = state.combo;
+      const gain = 10 + state.combo; // 連続正解でボーナス点
+      state.score += gain;
+      const step = isBonus ? 2 : 1;
+      state.currentStage = Math.min(CONFIG.MAP_LENGTH, state.currentStage + step);
+    } else {
+      playWrongSound();
+      state.combo = 0;
+      if (!isBonus){
+        state.currentStage = Math.max(0, state.currentStage - 1);
+      }
+    }
+
+    saveState();
+    renderProgress();                   // 結果が出た瞬間に進捗バーも更新し、進退をすぐ見せる
+    renderResult(isCorrect, isBonus);
+    renderStatusBar();
+
+    // 少し待ってから自動で次のマスへ(待ち時間はランダム)
+    // ※ scheduleAuto が「前の予約(出題タイマー)」を自動で止めてくれるので、
+    //    ここで別途タイマーを消す処理を書かなくてよい。
+    const delay = randInt(CONFIG.RESULT_DELAY_MIN, CONFIG.RESULT_DELAY_MAX);
+    scheduleAuto(startNextTurn, delay);
+  }
+
+  // 一時停止ボタンの処理
+  function togglePause(){
+    isPaused = !isPaused;
+    const pauseBtn = document.getElementById("pauseBtn");
+    pauseBtn.textContent = isPaused ? "▶ さいかい" : "⏸ 一時停止";
+    pauseBtn.classList.toggle("active", isPaused);
+
+    const timerInner = document.getElementById("timerInner");
+
+    if (isPaused){
+      pauseAutoTimer();
+      // 出題中の制限時間バーも、今の幅のまま止める
+      if (questionTimerActive && timerInner){
+        const currentWidthPx = timerInner.getBoundingClientRect().width;
+        timerInner.style.transition = "none";
+        timerInner.style.width = currentWidthPx + "px";
+      }
+    } else {
+      resumeAutoTimer();
+      // 出題中の制限時間バーも、止めた幅から再開する
+      if (questionTimerActive && timerInner){
+        const remaining = autoTimer.remainingMs;
+        requestAnimationFrame(() => {
+          timerInner.style.transition = `width ${remaining}ms linear`;
+          timerInner.style.width = "0px";
+        });
+      }
+    }
+    syncPauseOverlay();
+  }
+
+
+  /* ---------------------------------------------------------------
+     10. 初期化処理
+     --------------------------------------------------------------- */
+  async function startNewGame(){
+    state = {
+      version: CONFIG.SAVE_VERSION,
+      cellTypes: generateMap(),
+      currentStage: 0,
+      score: 0,
+      combo: 0,
+      bestCombo: 0,
+      muted: state.muted, // ミュート設定だけは引き継ぐ
+    };
+    await saveState();
+    startNextTurn();
+  }
+
+  async function init(){
+    const saved = await loadState();
+    if (saved){
+      state = saved;
+    } else {
+      state.cellTypes = generateMap();
+    }
+    renderProgress();
+    renderStatusBar();
+    startNextTurn();
+
+    document.getElementById("resetBtn").addEventListener("click", async () => {
+      const ok = confirm("さいしょからやり直しますか？(今のきろくは消えます)");
+      if (ok){
+        await clearState();
+        await startNewGame();
+      }
+    });
+
+    document.getElementById("muteBtn").addEventListener("click", () => {
+      state.muted = !state.muted;
+      document.getElementById("muteBtn").textContent = state.muted ? "🔇 音" : "🔊 音";
+      saveState();
+    });
+    document.getElementById("muteBtn").textContent = state.muted ? "🔇 音" : "🔊 音";
+
+    document.getElementById("pauseBtn").addEventListener("click", togglePause);
+  }
+
+  init();
+
+</script>
+</body>
+</html>
