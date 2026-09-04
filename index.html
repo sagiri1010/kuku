@@ -91,12 +91,7 @@
     font-size:14px;
   }
 
-  /* ---------- 進捗バー(旧マップの代わり) ----------
-     以前はマス目のマップを別ブロックで表示していたが、バトル画面と
-     離れて見づらいという指摘があったため、細い進捗バーに変更した。
-     バトル画面のすぐ上に置くことで、画面のまとまりを良くしている。
-     バーの上にボス(👑)・ボーナス(🎁)の位置を目印として表示する。
-  */
+  /* ---------- 進捗バー(旧マップの代わり) ---------- */
   .progress-wrap{
     background: var(--color-card);
     border-radius:16px;
@@ -117,7 +112,6 @@
     border-radius:8px;
     transition:width 0.4s ease;
   }
-  /* ボス・ボーナスの目印アイコン(バーの上に絶対配置) */
   .progress-marker{
     position:absolute;
     top:50%;
@@ -125,15 +119,13 @@
     font-size:16px;
     line-height:1;
   }
-  .progress-marker.passed{ opacity:0.35; } /* 通過済みは薄く表示 */
-  /* スタート・ゴールの目印(固定位置) */
+  .progress-marker.passed{ opacity:0.35; }
   .progress-endpoint{
     position:absolute;
     top:50%;
     transform:translate(-50%, -50%);
     font-size:14px;
   }
-  /* 今の位置を示すキャラアイコン */
   .progress-hero{
     position:absolute;
     top:50%;
@@ -197,7 +189,6 @@
     margin:10px 0;
   }
 
-  /* 制限時間バー(pxで幅を管理して、一時停止時にそのまま止められるようにしている) */
   .timer-outer{
     width:100%;
     height:10px;
@@ -251,6 +242,32 @@
     cursor:pointer;
   }
   .start-btn:active{ transform:translateY(2px); box-shadow:0 2px 0 var(--color-accent-dark); }
+
+  /* ---------- ボーナスのくじ引きカード ---------- */
+  .bonus-cards{
+    display:flex;
+    gap:12px;
+    justify-content:center;
+    margin:16px 0;
+  }
+  .bonus-card{
+    width:72px;
+    height:92px;
+    font-size:30px;
+    border-radius:12px;
+    border:none;
+    background: linear-gradient(160deg, #FFD76A, #F6B93B);
+    box-shadow:0 4px 0 #C98A1E;
+    cursor:pointer;
+    color:#fff;
+  }
+  .bonus-card:active{ transform:translateY(2px); box-shadow:0 2px 0 #C98A1E; }
+  .bonus-card:disabled{ opacity:0.45; cursor:default; }
+  .bonus-card.picked{
+    background: linear-gradient(160deg, #FFF3C4, #FFD76A);
+    opacity:1;
+    box-shadow:0 4px 0 #C98A1E, 0 0 12px 4px rgba(255,215,106,0.9);
+  }
 
   /* ---------- 一時停止オーバーレイ ---------- */
   .pause-overlay{
@@ -312,70 +329,73 @@
    ▼▼▼ 仕様説明(このゲームの全体像) ▼▼▼
 
    【ゲーム内容】
-   すごろく形式で九九を練習するゲームです。
-   全25マスあり、1マスごとに九九の問題(4択)が出ます。
-   正解すると1マス進み、不正解・時間切れだと1マス後退します。
-   7マスごとに「ボスマス」があり、少し難しい段(6〜9)が出て、
-   制限時間も短めになります。
-   ランダムで「ボーナスマス」も混ざっていて、そこは制限時間なし、
-   正解すると2マス進めます(失敗してもペナルティなし)。
-   全25マスをクリアするとゴールです。
+   すごろく形式で九九を練習するゲームです。全25マス。
+   ・通常マス:九九の4択問題。正解で1マス進み、不正解/時間切れで1マス後退。
+   ・ボスマス(7マスごと):6〜9の段の問題。
+       「CONFIG.BOSS_HITS_NEEDED」回(初期値2回)連続で正解しないと倒せない。
+       1回正解しても倒せなければ、そのマスのまま新しい問題がもう一度出る。
+       不正解になると、連続正解カウントは0に戻り、1マス後退する。
+   ・ボスマス(7マスごと):6〜9の段の問題。登場演出のあと、画像と
+       タイマーバーを1回だけ表示し、その1本のタイマー(合計時間。
+       CONFIG.BOSS_TOTAL_TIME_MIN〜MAX)が減り続けている間に問題を
+       「CONFIG.BOSS_HITS_NEEDED」回(初期値2回)連続で正解すると倒せる。
+       1問目にどれだけ時間を使っても、2問目はその残り時間で答える形になる
+       (例:合計10秒のうち1問目に8秒使ったら、2問目は残り2秒)。
+       画像・タイマーバーは2問の間ずっと同じもの(リセットしない)。
+       不正解、または合計時間切れになると、連続正解カウントは0に戻り、
+       1マス後退する。
+   ・ボーナスマス(ランダム4か所):九九の問題は出ず、伏せられたカードが
+       3枚並ぶ「くじ引き」になる。1枚選んで開けると、進むマス数や
+       スコアなどの報酬がもらえる(ハズレなし)。
 
    【進行方法(自動進行+一時停止)】
-   このゲームはボタンを押さなくても自動で進みます。
-     モンスターが現れる → (少し待つ) → 問題が出る(制限時間あり)
-     → 答える → 結果表示 → (少し待つ) → 次のマスへ …
-   待ち時間はすべてランダムにしていて、毎回テンポが変わるようにしています。
-   画面右上の「⏸ 一時停止」を押すといつでも止められます(出題中の残り時間も
-   そのまま止まります)。もう一度押すと、止めたところから再開します。
+   ボタンを押さなくても自動で進みます。
+     モンスターが現れる → (少し待つ) → 問題(制限時間あり) → 答える
+     → 結果表示 → (少し待つ) → 次のマスへ …
+   (ボーナスマスだけは「カードを選ぶ」ところだけ手動タップが必要です)
+   待ち時間はランダムにしていて、毎回テンポが変わります。
+   右上の「⏸ 一時停止」でいつでも止められ、再開できます。
 
-   【進捗表示について】
-   以前はマス目を並べた大きなマップを表示していましたが、バトル画面と
-   離れて見づらいという指摘を受け、バトル画面のすぐ上に「細い進捗バー」
-   を置く形に変更しました。バーの上にボス(👑)・ボーナス(🎁)の位置が
-   目印として表示され、今の位置はキャラのアイコンで示されます。
+   【効果音の役割】
+   ・「ボタンを選んだ瞬間」の短い音(playCorrectSound) … ボス戦で1発
+     当てたが、まだ倒せていない(マスがまだ進まない)ときなど。
+   ・「実際にマスが進む(お祝い)」ときだけ鳴る、上がっていく3音の
+     明るい音(playAdvanceSound) … 通常マスに正解したとき、ボスを
+     倒してマスが進んだ瞬間など。
+   ・ボーナスのカードを開けた音(playBonusSound)、不正解の音
+     (playWrongSound)、ゴールの音(playGoalSound)は、それぞれ専用。
 
-   【重要な修正履歴(不具合の原因と直した内容)】
-   1. 「モンスターが現れた」の画像と、実際の問題画面のモンスター画像が
-      違って見える不具合 → 原因は、登場演出と問題画面でそれぞれ別々に
-      モンスターをランダム抽選していたため。今は「出題する九九の内容」を
-      マスに到着した瞬間に1回だけ決めて、その情報を登場演出にも問題にも
-      使うように直した(makeQuestion を startNextTurn 内で1回だけ呼ぶ)。
-   2. バーの減り具合と、正解/不正解の判定タイミングがズレる不具合、
-      および一時停止ボタンが効かない不具合 → どちらも原因は同じで、
-      「自動で次に進むタイマー(scheduleAuto)」で新しいタイマーを
-      予約するときに、前のタイマーを止め忘れていたため。早く回答した
-      場合などに古いタイマーが裏で生き残ってしまい、後から勝手に発動
-      していた。scheduleAuto の中で「前のタイマーが残っていたら必ず
-      先に止める」処理を追加して修正した。
+   【重要な修正履歴】
+   ・登場演出と問題画面のモンスター画像が一致するよう、出題内容を
+     マスに到着した瞬間に1回だけ決めるようにした。
+   ・自動進行タイマーの消し忘れによる誤判定/一時停止が効かない不具合を
+     修正(新しいタイマーを予約する前に必ず前のタイマーを止める)。
+   ・ボーナスマスをくじ引き形式に変更、ボスマスを「1本のタイマーで2問
+     連続正解」方式に変更。効果音の役割を「選んだ音」と「進む音」に分けた。
 
    【保存について】
-   window.storage というブラウザの保存機能を使って、
-   「今どのマスにいるか」「マップの並び(ボス・ボーナスの位置)」
-   「スコア」を保存しています。次回このページを開いたときも
-   続きから遊べます。「さいしょから」ボタンを押すと、保存データを
-   消して最初からやり直せます。
+   window.storage を使い、今のマス位置・マップ内容・スコアを保存して
+   います。次回開いたときも続きから遊べます。「さいしょから」で
+   保存データを消してやり直せます。
+   ※ボス戦の連続正解カウント(bossHitsSoFar)は保存していないため、
+     ボス戦の途中でページを閉じると、次に開いたときは1問目からに
+     なります(仕様上の割り切りです)。
 
    【画像について】
-   GitHub上の画像(SVG)をそのまま読み込んで使っています。
-   IMAGE_BASE + ファイル名 のURLで画像を表示しています。
-   もし画像が表示されない場合は、GitHubのリポジトリが公開設定に
-   なっているか、ブランチ名が "main" かどうかを確認してください。
-   (画像が読み込めない場合は絵文字で代わりに表示するようにしています)
+   GitHub上の画像(SVG)を IMAGE_BASE + ファイル名 で読み込んでいます。
+   表示されない場合はリポジトリが公開設定か、ブランチ名が "main" かを
+   確認してください(読み込み失敗時は絵文字で代わりに表示します)。
 
-   【段とモンスターの対応(CONFIG.tableToImage)】
-   ここを書き換えると、何の段にどのモンスターを出すか変更できます。
-
-   【ファイル構成(このHTMLの中の並び順)】
-   1. CONFIG          … 設定値をまとめた場所(ここを変えれば挙動が変わる)
-   2. state             … 今のゲームの状態を持つ変数
-   3. storage関連関数    … 保存・読み込み
+   【ファイル構成】
+   1. CONFIG            … 設定値(ここを変えれば挙動が変わる)
+   2. state               … ゲームの状態
+   3. storage関連関数      … 保存・読み込み
    4. マップ生成関数
-   5. 問題生成関数
-   6. 自動進行タイマー(scheduleAuto等) … 一時停止の仕組みの土台
+   5. 問題生成関数 / くじ引き抽選関数
+   6. 自動進行タイマー(scheduleAuto等)
    7. 効果音
-   8. 描画(render)関数  … 画面に反映する処理
-   9. イベント処理        … ゲームの流れそのもの
+   8. 描画(render)関数
+   9. イベント処理(ゲームの流れ)
    10. 初期化
    ===================================================================== */
 
@@ -384,30 +404,46 @@
      1. CONFIG : 調整したい数値・対応表はすべてここにまとめています
      --------------------------------------------------------------- */
   const CONFIG = {
-    // GitHub上の画像が置いてある場所(ここのURLは念のため確認してください)
     IMAGE_BASE: "https://raw.githubusercontent.com/sagiri1010/kuku/main/",
 
-    // マップの長さ(マスの数)
     MAP_LENGTH: 25,
-
-    // 何マスごとにボスを置くか
     BOSS_INTERVAL: 7,
-
-    // ボーナスマスをいくつ置くか
     BONUS_COUNT: 4,
 
-    // 制限時間(ミリ秒)。ランダムに幅を持たせてテンポを変える
-    // ※以前「時間が短すぎる」という指摘があったため、少し余裕を持たせている
+    // 制限時間(ミリ秒)。ランダムに幅を持たせてテンポを変える(通常マス用)
     TIME_NORMAL_MIN: 5000,
     TIME_NORMAL_MAX: 8000,
-    TIME_BOSS_MIN: 4000,
-    TIME_BOSS_MAX: 6000,
 
-    // 自動進行の「待ち時間」もランダムにしてテンポを変える
-    INTRO_DELAY_MIN: 700,   // モンスター登場→出題 までの待ち時間(ミリ秒)
+    // ボス戦は「2問まとめて1本のタイマー」で管理する。
+    // 例:合計10秒のうち1問目に8秒使ったら、2問目は残り2秒で答える。
+    BOSS_TOTAL_TIME_MIN: 9000,
+    BOSS_TOTAL_TIME_MAX: 12000,
+
+    // ボスの「登場演出」は文字が長い(倒し方の説明が入る)ので、
+    // 通常マスより長めに表示する専用の待ち時間
+    BOSS_INTRO_DELAY_MIN: 2200,
+    BOSS_INTRO_DELAY_MAX: 3000,
+
+    // 自動進行の「待ち時間」もランダムにしてテンポを変える(通常マス用)
+    INTRO_DELAY_MIN: 700,
     INTRO_DELAY_MAX: 1400,
-    RESULT_DELAY_MIN: 1200, // 結果表示→次のマス までの待ち時間(ミリ秒)
+    RESULT_DELAY_MIN: 1200,
     RESULT_DELAY_MAX: 1900,
+
+    // ボスを倒すのに何回連続正解が必要か
+    BOSS_HITS_NEEDED: 2,
+
+    // ボーナスのくじ引きで並べるカードの枚数
+    BONUS_CARD_COUNT: 3,
+
+    // ボーナスの報酬候補。weightが大きいほど当たりやすい(ハズレはナシ)
+    BONUS_REWARDS: [
+      { label: "1マスすすむ",              steps: 1, score: 10, weight: 30 },
+      { label: "2マスすすむ",              steps: 2, score: 20, weight: 30 },
+      { label: "3マスすすむ！",            steps: 3, score: 30, weight: 20 },
+      { label: "スコア+30！",              steps: 1, score: 30, weight: 15 },
+      { label: "ラッキー！4マスすすむ！！", steps: 4, score: 40, weight: 5  },
+    ],
 
     // 段(1〜9)ごとに、どのモンスター画像を出すか
     tableToImage: {
@@ -426,13 +462,21 @@
       5: "トレント", 6: "まじょ", 7: "フランケン", 8: "イエティ", 9: "ドラゴン",
     },
 
-    BOSS_IMAGE: "character_monster_mimic_purple.svg",
-    BOSS_NAME: "ミミック(ボス)",
+    // ボスは複数体用意し、1体目・2体目・3体目…の順に割り当てる
+    // (ボスがこの配列より多く出てくる場合は、また先頭から繰り返す)
+    BOSS_IMAGES: [
+      "character_monster_mimic_purple.svg",
+      "character_monster_dragon_01_yellow.svg",
+      "character_monster_yeti_01_blue.svg",
+    ],
+    BOSS_NAMES: [
+      "ミミック(ボス)",
+      "ドラゴン(ボス)",
+      "イエティ(ボス)",
+    ],
     BONUS_IMAGE: "character_monster_hi_blue.svg",
     HERO_IMAGE: "character_heishi_armor_02_01_blue.svg",
 
-    // 保存に使うキー名。仕様を大きく変えたらVERSIONを上げると
-    // 古い保存データが自動的に無視されて事故を防げます。
     STORAGE_KEY: "kuku_quest_state",
     SAVE_VERSION: 1,
   };
@@ -443,22 +487,24 @@
      --------------------------------------------------------------- */
   let state = {
     version: CONFIG.SAVE_VERSION,
-    cellTypes: [],     // 各マスが 'normal' / 'boss' / 'bonus' のどれか
-    currentStage: 0,   // 今何マス目まで進んでいるか(0〜MAP_LENGTH)
+    cellTypes: [],
+    currentStage: 0,
     score: 0,
     combo: 0,
     bestCombo: 0,
     muted: false,
   };
 
-  // 今出題中の問題の情報(マスに着いた瞬間に1回だけ決めて、
-  // 「モンスター登場」画面と「問題」画面の両方でこれを使う)
-  let currentQuestion = null; // {a, b, answer, options, tableForImage, isBoss}
-  let answered = false;        // 二重回答防止フラグ
-  let isPaused = false;        // 一時停止中かどうか
+  let currentQuestion = null;
+  let answered = false;
+  let isPaused = false;
+  let questionTimerActive = false;
 
-  // 制限時間バー用(一時停止時にそのまま止めるために覚えておく値)
-  let questionTimerActive = false; // 今「出題中の制限時間バー」が動いているか
+  // ボス戦だけで使う、一時的な変数(保存はしない)
+  // 今のボスに何回連続で正解しているか
+  let bossHitsSoFar = 0;
+  // 今戦っているボスの見た目(画像・名前)。マスに到着したときに1回だけ決める
+  let currentBossVariant = { image: CONFIG.BOSS_IMAGES[0], name: CONFIG.BOSS_NAMES[0] };
 
 
   /* ---------------------------------------------------------------
@@ -490,9 +536,7 @@
   async function clearState(){
     try{
       await window.storage.delete(CONFIG.STORAGE_KEY);
-    }catch(e){
-      // もともと無い場合はエラーになるが無視してよい
-    }
+    }catch(e){ /* もともと無い場合は無視してよい */ }
   }
 
 
@@ -502,17 +546,15 @@
   function generateMap(){
     const types = new Array(CONFIG.MAP_LENGTH).fill("normal");
 
-    // ボスマスを一定間隔で配置(例: 7,14,21マス目)
     for (let i = CONFIG.BOSS_INTERVAL - 1; i < CONFIG.MAP_LENGTH; i += CONFIG.BOSS_INTERVAL){
       types[i] = "boss";
     }
 
-    // ボーナスマスをランダムに配置(ボスマスと重ならないように)
     let placed = 0;
-    let safetyCounter = 0; // 無限ループ防止
+    let safetyCounter = 0;
     while (placed < CONFIG.BONUS_COUNT && safetyCounter < 500){
       safetyCounter++;
-      const idx = Math.floor(Math.random() * (CONFIG.MAP_LENGTH - 1)); // 最後のマスはボーナスにしない(達成感のため)
+      const idx = Math.floor(Math.random() * (CONFIG.MAP_LENGTH - 1));
       if (types[idx] === "normal"){
         types[idx] = "bonus";
         placed++;
@@ -523,7 +565,7 @@
 
 
   /* ---------------------------------------------------------------
-     5. 問題生成関数
+     5. 問題生成関数 / くじ引き抽選関数
      --------------------------------------------------------------- */
   function randInt(min, max){
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -531,12 +573,10 @@
 
   function makeQuestion(cellType){
     const isBoss = cellType === "boss";
-    // ボスマスは6〜9の段、それ以外は1〜9の段からランダム
     const a = isBoss ? randInt(6, 9) : randInt(1, 9);
     const b = randInt(1, 9);
     const answer = a * b;
 
-    // 不正解の選択肢(近い数字にして、当てずっぽうを少し防ぐ)
     const candidates = new Set();
     const tryAdd = (v) => { if (v > 0 && v !== answer) candidates.add(v); };
     tryAdd((a + 1) * b);
@@ -549,13 +589,11 @@
     tryAdd(answer - b);
 
     const candidateList = Array.from(candidates);
-    // シャッフルして3つ選ぶ
     for (let i = candidateList.length - 1; i > 0; i--){
       const j = Math.floor(Math.random() * (i + 1));
       [candidateList[i], candidateList[j]] = [candidateList[j], candidateList[i]];
     }
     let wrongOptions = candidateList.slice(0, 3);
-    // 万が一候補が足りない場合はランダムな数で埋める
     while (wrongOptions.length < 3){
       const v = answer + randInt(-10, 10);
       if (v > 0 && v !== answer && !wrongOptions.includes(v)){
@@ -569,39 +607,50 @@
       [options[i], options[j]] = [options[j], options[i]];
     }
 
-    return {
-      a, b, answer, options,
-      tableForImage: a,
-      isBoss,
-    };
+    return { a, b, answer, options, tableForImage: a, isBoss };
+  }
+
+  // 今のマス(stageIndex)が「何体目のボス」かを数えて、対応する見た目を選ぶ。
+  // 例: 1体目のボスマスなら CONFIG.BOSS_IMAGES[0]、2体目なら[1]…という具合。
+  // 配列より多くのボスが出てくる場合は、また先頭から繰り返す(あまりの計算)。
+  function pickBossVariant(stageIndex){
+    let bossOrdinal = 0; // 何体目か(1から数える)
+    for (let i = 0; i <= stageIndex; i++){
+      if (state.cellTypes[i] === "boss") bossOrdinal++;
+    }
+    const idx = (bossOrdinal - 1) % CONFIG.BOSS_IMAGES.length;
+    return { image: CONFIG.BOSS_IMAGES[idx], name: CONFIG.BOSS_NAMES[idx] };
+  }
+
+  // 重み付き抽選で、ボーナスの報酬を1つ選ぶ(ハズレなし)
+  function pickWeightedReward(){
+    const pool = CONFIG.BONUS_REWARDS;
+    const totalWeight = pool.reduce((sum, r) => sum + r.weight, 0);
+    let r = Math.random() * totalWeight;
+    for (const reward of pool){
+      if (r < reward.weight) return reward;
+      r -= reward.weight;
+    }
+    return pool[pool.length - 1]; // 浮動小数点の誤差対策の保険
   }
 
 
   /* ---------------------------------------------------------------
      6. 自動進行タイマー(一時停止の仕組みの土台)
-        -----------------------------------------------------------
-        このゲームは「モンスター登場→出題→結果→次へ」を自動で進める。
-        その「次に進むまでの待ち時間」を、ここで一括管理している。
-        一時停止したときは、残り時間を覚えておいて、再開したときに
-        その残り時間からもう一度カウントを始める。
-
-        ★重要: scheduleAuto を呼ぶときは、必ず「前の予約が残っていない
-        か」を確認して、残っていたら先に止めてから新しく予約する。
-        これを忘れると、前の予約が裏で生き残ったまま動き続けてしまい、
-        後から関係ないタイミングで勝手に発動する不具合が起きる
-        (実際にこの不具合が発生したため、下記のように必ず止めるようにした)。
+        ★重要: scheduleAuto は、前の予約が残っていたら必ず先に止めてから
+        新しく予約する。これを忘れると、前の予約が裏で生き残ったまま
+        動き続け、後から関係ないタイミングで勝手に発動する
+        (実際にこの不具合が起きたため、必ず止めるようにしている)。
      --------------------------------------------------------------- */
   const autoTimer = {
     timeoutId: null,
-    callback: null,   // 待ち時間が終わったら呼ぶ関数
-    remainingMs: 0,   // 残り時間
-    startedAt: 0,      // 今回のカウントを開始した時刻
-    running: false,    // 今カウント中かどうか
+    callback: null,
+    remainingMs: 0,
+    startedAt: 0,
+    running: false,
   };
 
-  // callbackを delayMs ミリ秒後に実行する予約をする
   function scheduleAuto(callback, delayMs){
-    // 前の予約が残っていたら、暴走を防ぐため必ず先に止めてから予約し直す
     if (autoTimer.timeoutId !== null){
       clearTimeout(autoTimer.timeoutId);
       autoTimer.timeoutId = null;
@@ -624,7 +673,6 @@
     }, autoTimer.remainingMs);
   }
 
-  // 一時停止: 今動いているタイマーを止めて、残り時間を覚えておく
   function pauseAutoTimer(){
     if (!autoTimer.running) return;
     clearTimeout(autoTimer.timeoutId);
@@ -634,9 +682,8 @@
     autoTimer.running = false;
   }
 
-  // 再開: 覚えておいた残り時間からもう一度カウントを始める
   function resumeAutoTimer(){
-    if (autoTimer.callback === null) return; // 予約が無ければ何もしない
+    if (autoTimer.callback === null) return;
     startAutoCountdown();
   }
 
@@ -660,9 +707,18 @@
       osc.stop(audioCtx.currentTime + duration / 1000);
     }catch(e){ /* 音が出せない環境は無視 */ }
   }
-  function playCorrectSound(){ playTone(880, 150); }
+  function playCorrectSound(){ playTone(880, 150); }        // ボタンを選んだ瞬間の「ピッ」
   function playWrongSound(){ playTone(220, 250); }
   function playGoalSound(){ playTone(660, 400); }
+  function playBonusSound(){ playTone(1046, 180); }          // ボーナスのカードを開けた音
+
+  // 実際にマスが進む(お祝いの)瞬間だけ鳴らす、上がっていく3音の明るい音
+  function playAdvanceSound(){
+    if (state.muted) return;
+    playTone(523, 120);                       // ド
+    setTimeout(() => playTone(659, 120), 100); // ミ
+    setTimeout(() => playTone(784, 220), 200); // ソ
+  }
 
 
   /* ---------------------------------------------------------------
@@ -672,7 +728,6 @@
     return CONFIG.IMAGE_BASE + filename;
   }
 
-  // 画像読み込み失敗時に絵文字へ差し替える(画像URLが間違っていてもゲームを止めないため)
   function withFallback(imgEl, emoji){
     imgEl.onerror = function(){
       imgEl.onerror = null;
@@ -688,20 +743,17 @@
     document.getElementById("comboText").textContent = "れんぞく正解: " + state.combo;
   }
 
-  // 進捗バーを描画する(以前のマス目マップの代わり)
   function renderProgress(){
     const track = document.getElementById("progressTrack");
     track.innerHTML = "";
 
     const pct = (state.currentStage / CONFIG.MAP_LENGTH) * 100;
 
-    // 進んだ分の色を塗る
     const fill = document.createElement("div");
     fill.className = "progress-fill";
     fill.style.width = pct + "%";
     track.appendChild(fill);
 
-    // スタート・ゴールの固定目印
     const startMark = document.createElement("span");
     startMark.className = "progress-endpoint";
     startMark.style.left = "0%";
@@ -714,7 +766,6 @@
     goalMark.textContent = "🏁";
     track.appendChild(goalMark);
 
-    // ボス・ボーナスの目印(通過済みは薄く表示)
     state.cellTypes.forEach((type, idx) => {
       if (type === "normal") return;
       const marker = document.createElement("span");
@@ -724,7 +775,6 @@
       track.appendChild(marker);
     });
 
-    // 今の位置を示すキャラアイコン
     const hero = document.createElement("span");
     hero.className = "progress-hero";
     hero.style.left = pct + "%";
@@ -735,16 +785,18 @@
   }
 
   // バトル画面: 「モンスター登場」の演出
-  // ※画像は currentQuestion (呼び出し元で先に決めてある) を使う。
-  //   ここで新しくランダム抽選をしてしまうと、問題画面と絵が食い違うので注意。
-  function renderIntro(cellType, question){
+  // labelOverride を渡すと、既定のセリフの代わりにそれを表示する(ボス連戦時などに使用)
+  function renderIntro(cellType, question, labelOverride){
     const wrap = document.getElementById("battleWrap");
     const isBoss = cellType === "boss";
     const isBonus = cellType === "bonus";
-    const imageFile = isBoss ? CONFIG.BOSS_IMAGE
+    const imageFile = isBoss ? currentBossVariant.image
                      : isBonus ? CONFIG.BONUS_IMAGE
                      : CONFIG.tableToImage[question.tableForImage];
-    const label = isBoss ? "ボスが あらわれた!" : (isBonus ? "ボーナスマス!" : "モンスターが あらわれた!");
+    const defaultLabel = isBoss
+      ? `ボスが あらわれた! (${CONFIG.BOSS_HITS_NEEDED}回 せいかいで たおせる!)`
+      : (isBonus ? "ボーナスマス!" : "モンスターが あらわれた!");
+    const label = labelOverride || defaultLabel;
 
     wrap.innerHTML = `
       <div class="monster-area">
@@ -758,35 +810,27 @@
     syncPauseOverlay();
   }
 
-  // バトル画面: 実際の問題を表示する(currentQuestionはこの時点で決まっている)
+  // バトル画面: 実際の問題を表示する(通常マス専用。ボス・ボーナスはここを通らない)
   function renderQuestion(){
     const wrap = document.getElementById("battleWrap");
     const q = currentQuestion;
-    const isBonus = state.cellTypes[state.currentStage] === "bonus";
-    // ボス > ボーナス > 通常 の優先順で画像・名前を決める。
-    // (以前はここで isBonus を考慮しておらず、ボーナスマスの問題画面だけ
-    //  通常モンスターの画像が出てしまっていたので、判定を追加した)
-    const imageFile = q.isBoss ? CONFIG.BOSS_IMAGE
-                     : isBonus ? CONFIG.BONUS_IMAGE
-                     : CONFIG.tableToImage[q.tableForImage];
-    const monsterName = q.isBoss ? CONFIG.BOSS_NAME
-                       : isBonus ? "ボーナス"
-                       : CONFIG.tableToName[q.tableForImage];
+    const imageFile = CONFIG.tableToImage[q.tableForImage];
+    const monsterName = CONFIG.tableToName[q.tableForImage];
 
     wrap.innerHTML = `
       <div class="monster-area">
-        <img class="${q.isBoss ? 'boss-img' : ''}" id="qImg" src="${imgUrl(imageFile)}">
+        <img id="qImg" src="${imgUrl(imageFile)}">
         <div class="monster-label">${monsterName}</div>
       </div>
       <div class="question-box">${q.a} × ${q.b} = ?</div>
-      <div class="timer-outer" style="visibility:${isBonus ? 'hidden' : 'visible'}">
+      <div class="timer-outer">
         <div class="timer-inner" id="timerInner"></div>
       </div>
       <div class="answers" id="answersArea"></div>
       <div class="pause-overlay hidden" id="pauseOverlay">⏸ 一時停止中</div>
     `;
     const img = document.getElementById("qImg");
-    withFallback(img, q.isBoss ? "👹" : "👾");
+    withFallback(img, "👾");
 
     const answersArea = document.getElementById("answersArea");
     q.options.forEach((opt) => {
@@ -797,38 +841,127 @@
       answersArea.appendChild(btn);
     });
 
-    // タイマー開始(ボーナスマスは制限時間なし)
     answered = false;
-    if (!isBonus){
-      const duration = q.isBoss
-        ? randInt(CONFIG.TIME_BOSS_MIN, CONFIG.TIME_BOSS_MAX)
-        : randInt(CONFIG.TIME_NORMAL_MIN, CONFIG.TIME_NORMAL_MAX);
-      questionTimerActive = true;
+    const duration = randInt(CONFIG.TIME_NORMAL_MIN, CONFIG.TIME_NORMAL_MAX);
+    questionTimerActive = true;
 
-      const timerInner = document.getElementById("timerInner");
-      const outerWidthPx = timerInner.parentElement.clientWidth;
-      // pxで幅を管理する(一時停止で凍結・再開するときに単位を揃えるため)
-      timerInner.style.transition = "none";
-      timerInner.style.width = outerWidthPx + "px";
-      requestAnimationFrame(() => {
-        timerInner.style.transition = `width ${duration}ms linear`;
-        timerInner.style.width = "0px";
-      });
+    const timerInner = document.getElementById("timerInner");
+    const outerWidthPx = timerInner.parentElement.clientWidth;
+    timerInner.style.transition = "none";
+    timerInner.style.width = outerWidthPx + "px";
+    requestAnimationFrame(() => {
+      timerInner.style.transition = `width ${duration}ms linear`;
+      timerInner.style.width = "0px";
+    });
 
-      scheduleAuto(() => {
-        questionTimerActive = false;
-        if (!answered) handleAnswer(null, null); // 時間切れ = 不正解扱い
-      }, duration);
-    } else {
+    scheduleAuto(() => {
       questionTimerActive = false;
-    }
+      if (!answered) handleAnswer(null, null);
+    }, duration);
+
     syncPauseOverlay();
   }
 
-  // 結果表示(正解/不正解)
-  function renderResult(isCorrect, isBonus){
+
+  /* --- ここからボス戦専用の描画関数 ---
+     ボス戦は「画像とタイマーバーを1回だけ表示し、その1本のバーが
+     減り続けている間に問題を2問続けて出す」という特殊な流れなので、
+     通常マスの renderQuestion とは別に用意している。
+     renderBossBattleScreen : 1問目のときに1回だけ呼ぶ(画像・バーを作る)
+     updateBossQuestionOnly : 2問目に切り替えるときに呼ぶ(文章と選択肢だけ差し替え。
+                               画像とタイマーバーには一切触らない) */
+
+  // ボス戦の画面をまるごと作る(1問目の最初、1回だけ呼ばれる)
+  function renderBossBattleScreen(totalMs){
     const wrap = document.getElementById("battleWrap");
-    const text = isCorrect ? "せいかい!" : (isBonus ? "ざんねん(ペナルティなし)" : "ざんねん…1マスもどる");
+    wrap.innerHTML = `
+      <div class="monster-area">
+        <img class="boss-img" id="qImg" src="${imgUrl(currentBossVariant.image)}">
+        <div class="monster-label" id="bossLabel"></div>
+      </div>
+      <div class="question-box" id="questionBox"></div>
+      <div class="timer-outer">
+        <div class="timer-inner" id="timerInner"></div>
+      </div>
+      <div class="answers" id="answersArea"></div>
+      <div class="pause-overlay hidden" id="pauseOverlay">⏸ 一時停止中</div>
+    `;
+    const img = document.getElementById("qImg");
+    withFallback(img, "👹");
+
+    updateBossQuestionText(); // 1問目の文章・選択肢・のこり回数表示を入れる
+
+    // タイマーバー開始(2問分まとめての合計時間)
+    questionTimerActive = true;
+    const timerInner = document.getElementById("timerInner");
+    const outerWidthPx = timerInner.parentElement.clientWidth;
+    timerInner.style.transition = "none";
+    timerInner.style.width = outerWidthPx + "px";
+    requestAnimationFrame(() => {
+      timerInner.style.transition = `width ${totalMs}ms linear`;
+      timerInner.style.width = "0px";
+    });
+
+    syncPauseOverlay();
+  }
+
+  // 「のこり◯回」表示・問題文・選択肢だけを更新する(画像とタイマーバーは触らない)
+  function updateBossQuestionText(){
+    const q = currentQuestion;
+    document.getElementById("bossLabel").textContent =
+      `${currentBossVariant.name}（のこり${CONFIG.BOSS_HITS_NEEDED - bossHitsSoFar}回）`;
+    document.getElementById("questionBox").textContent = `${q.a} × ${q.b} = ?`;
+
+    const answersArea = document.getElementById("answersArea");
+    answersArea.innerHTML = "";
+    q.options.forEach((opt) => {
+      const btn = document.createElement("button");
+      btn.className = "answer-btn";
+      btn.textContent = opt;
+      btn.addEventListener("click", () => handleBossAnswer(opt, btn));
+      answersArea.appendChild(btn);
+    });
+    answered = false;
+  }
+
+  // バトル画面: ボーナスの「くじ引き」を表示する
+  function renderBonusChoice(){
+    const wrap = document.getElementById("battleWrap");
+
+    // カードごとに、あらかじめ中身(報酬)を決めておく(開けるまで見せない)
+    const cardRewards = [];
+    for (let i = 0; i < CONFIG.BONUS_CARD_COUNT; i++){
+      cardRewards.push(pickWeightedReward());
+    }
+
+    wrap.innerHTML = `
+      <div class="monster-area">
+        <img id="bonusImg" src="${imgUrl(CONFIG.BONUS_IMAGE)}">
+        <div class="monster-label">どれか1まい えらんでね!</div>
+      </div>
+      <div class="bonus-cards" id="bonusCards"></div>
+      <div class="pause-overlay hidden" id="pauseOverlay">⏸ 一時停止中</div>
+    `;
+    const img = document.getElementById("bonusImg");
+    withFallback(img, "🎁");
+
+    const cardsArea = document.getElementById("bonusCards");
+    cardRewards.forEach((reward) => {
+      const card = document.createElement("button");
+      card.className = "bonus-card";
+      card.textContent = "❓";
+      card.addEventListener("click", () => handleBonusPick(reward, card, cardsArea));
+      cardsArea.appendChild(card);
+    });
+
+    answered = false; // 二重タップ防止のフラグを流用
+    syncPauseOverlay();
+  }
+
+  // 結果表示(正解/不正解)。ボーナスのくじ引き結果はこの関数を使わず別に表示する。
+  function renderResult(isCorrect, resultText){
+    const wrap = document.getElementById("battleWrap");
+    const text = resultText || (isCorrect ? "せいかい!" : "ざんねん…1マスもどる");
     const cls = isCorrect ? "good" : "bad";
     const resultDiv = document.createElement("div");
     resultDiv.className = "result-text " + cls;
@@ -851,7 +984,6 @@
     });
   }
 
-  // 一時停止の見た目(オーバーレイの表示/非表示)を、今の状態に合わせる
   function syncPauseOverlay(){
     const overlay = document.getElementById("pauseOverlay");
     if (!overlay) return;
@@ -877,34 +1009,139 @@
     renderStatusBar();
     const cellType = state.cellTypes[state.currentStage];
 
-    // ここで先に問題の内容(どの段のモンスターか)を1回だけ決める。
-    // これを「モンスター登場」演出と「問題」画面の両方で使い回すことで、
-    // 表示されるモンスターが必ず一致するようにしている。
+    if (cellType === "bonus"){
+      renderIntro(cellType, null);
+      const delay = randInt(CONFIG.INTRO_DELAY_MIN, CONFIG.INTRO_DELAY_MAX);
+      scheduleAuto(beginBonusPhase, delay);
+      return;
+    }
+
+    if (cellType === "boss"){
+      // ボスの登場演出は説明文が長いので、専用の長めの待ち時間を使う
+      bossHitsSoFar = 0;
+      currentBossVariant = pickBossVariant(state.currentStage); // 何体目のボスかで見た目を決める
+      renderIntro(cellType, null);
+      const delay = randInt(CONFIG.BOSS_INTRO_DELAY_MIN, CONFIG.BOSS_INTRO_DELAY_MAX);
+      scheduleAuto(startBossBattle, delay);
+      return;
+    }
+
     currentQuestion = makeQuestion(cellType);
     renderIntro(cellType, currentQuestion);
-
-    // 少し待ってから自動で出題フェーズへ(待ち時間はランダム)
     const delay = randInt(CONFIG.INTRO_DELAY_MIN, CONFIG.INTRO_DELAY_MAX);
     scheduleAuto(beginQuestionPhase, delay);
   }
 
-  // 出題フェーズ(モンスター登場の演出のあとに呼ばれる)
-  // currentQuestion はすでに startNextTurn で決まっているので、表示するだけでよい。
   function beginQuestionPhase(){
     renderQuestion();
   }
 
-  // 回答したときの処理(選択肢クリック、または時間切れ)
+  function beginBonusPhase(){
+    renderBonusChoice();
+  }
+
+  /* --- ここからボス戦専用の進行処理 ---
+     ボス戦は「画像とタイマーバーを1回だけ表示し、そのバーが減り続けている
+     間に問題を2問続けて出す」という特殊な流れなので、通常マスの
+     handleAnswer とは別の専用関数(handleBossAnswer)を用意している。 */
+
+  // ボス戦の開始(登場演出のあとに呼ばれる。1問目を表示し、合計時間タイマーを1本だけ動かす)
+  function startBossBattle(){
+    currentQuestion = makeQuestion("boss");
+    const totalMs = randInt(CONFIG.BOSS_TOTAL_TIME_MIN, CONFIG.BOSS_TOTAL_TIME_MAX);
+    renderBossBattleScreen(totalMs);
+
+    // 2問分まとめての「合計時間切れ」タイマー。1問目→2問目の切り替えでは
+    // この予約を触らない(scheduleAutoを呼ばない)ことで、バーが止まらず
+    // 減り続けるようにしている。
+    scheduleAuto(handleBossTimeout, totalMs);
+  }
+
+  // 合計時間が切れたときの処理(まだ答えていなければ、不正解と同じ扱いにする)
+  function handleBossTimeout(){
+    if (answered) return; // すでに手動で回答済みなら何もしない(念のための保険)
+    answered = true;
+    questionTimerActive = false;
+    playWrongSound();
+    state.combo = 0;
+    bossHitsSoFar = 0;
+    state.currentStage = Math.max(0, state.currentStage - 1);
+    finishBossEncounter(false);
+  }
+
+  // ボス戦の選択肢をタップしたときの処理
+  function handleBossAnswer(selected, btnEl){
+    if (answered) return;
+    answered = true;
+
+    const isCorrect = selected === currentQuestion.answer;
+
+    const allBtns = document.querySelectorAll(".answer-btn");
+    allBtns.forEach((b) => {
+      b.disabled = true;
+      if (Number(b.textContent) === currentQuestion.answer){
+        b.classList.add("correct");
+      } else if (b === btnEl){
+        b.classList.add("wrong");
+      }
+    });
+
+    if (isCorrect){
+      playCorrectSound(); // 「あたった」という短い音(まだ進んだわけではないので進む音は鳴らさない)
+      state.combo += 1;
+      if (state.combo > state.bestCombo) state.bestCombo = state.combo;
+      state.score += 10 + state.combo;
+      bossHitsSoFar += 1;
+
+      if (bossHitsSoFar < CONFIG.BOSS_HITS_NEEDED){
+        // まだ倒せていない: 画像とタイマーバーはそのまま(触らない)で、
+        // 少しだけ正解の色を見せてから2問目に切り替える。
+        saveState();
+        renderStatusBar();
+        setTimeout(() => {
+          currentQuestion = makeQuestion("boss");
+          updateBossQuestionText(); // 文章と選択肢だけ差し替え。画像・バーはそのまま
+          questionTimerActive = true;
+        }, 500);
+        return; // ここで終了。合計タイマーには触らない
+      }
+
+      // 必要な回数に達した: 撃破。ここでようやく「進む」ので、お祝いの音を鳴らす
+      questionTimerActive = false;
+      playAdvanceSound();
+      bossHitsSoFar = 0;
+      state.currentStage = Math.min(CONFIG.MAP_LENGTH, state.currentStage + 1);
+      finishBossEncounter(true);
+    } else {
+      questionTimerActive = false;
+      playWrongSound();
+      state.combo = 0;
+      bossHitsSoFar = 0;
+      state.currentStage = Math.max(0, state.currentStage - 1);
+      finishBossEncounter(false);
+    }
+  }
+
+  // ボス戦の決着(勝ち/負け)処理をまとめる。
+  // scheduleAutoを呼ぶことで、まだ残っていた合計時間タイマー(handleBossTimeout)は
+  // 自動的に止められる(scheduleAutoは呼ぶたびに前の予約を消す仕組みのため)。
+  function finishBossEncounter(isCorrect){
+    saveState();
+    renderProgress();
+    renderResult(isCorrect, isCorrect ? "ボスを たおした!" : "ざんねん…1マスもどる");
+    renderStatusBar();
+    const delay = randInt(CONFIG.RESULT_DELAY_MIN, CONFIG.RESULT_DELAY_MAX);
+    scheduleAuto(startNextTurn, delay);
+  }
+
+  // 回答したときの処理(選択肢クリック、または時間切れ)。通常マス専用。
   function handleAnswer(selected, btnEl){
     if (answered) return;
     answered = true;
     questionTimerActive = false;
 
     const isCorrect = selected === currentQuestion.answer;
-    const cellType = state.cellTypes[state.currentStage];
-    const isBonus = cellType === "bonus";
 
-    // ボタンの色を変えて、どれが正解だったか分かるようにする
     if (btnEl){
       const allBtns = document.querySelectorAll(".answer-btn");
       allBtns.forEach((b) => {
@@ -918,34 +1155,51 @@
     }
 
     if (isCorrect){
-      playCorrectSound();
+      playAdvanceSound(); // 通常マスは正解=必ず進むので、お祝いの音を鳴らす
       state.combo += 1;
       if (state.combo > state.bestCombo) state.bestCombo = state.combo;
-      const gain = 10 + state.combo; // 連続正解でボーナス点
-      state.score += gain;
-      const step = isBonus ? 2 : 1;
-      state.currentStage = Math.min(CONFIG.MAP_LENGTH, state.currentStage + step);
+      state.score += 10 + state.combo;
+      state.currentStage = Math.min(CONFIG.MAP_LENGTH, state.currentStage + 1);
     } else {
       playWrongSound();
       state.combo = 0;
-      if (!isBonus){
-        state.currentStage = Math.max(0, state.currentStage - 1);
-      }
+      state.currentStage = Math.max(0, state.currentStage - 1);
     }
 
     saveState();
-    renderProgress();                   // 結果が出た瞬間に進捗バーも更新し、進退をすぐ見せる
-    renderResult(isCorrect, isBonus);
+    renderProgress();
+    renderResult(isCorrect);
     renderStatusBar();
 
-    // 少し待ってから自動で次のマスへ(待ち時間はランダム)
-    // ※ scheduleAuto が「前の予約(出題タイマー)」を自動で止めてくれるので、
-    //    ここで別途タイマーを消す処理を書かなくてよい。
     const delay = randInt(CONFIG.RESULT_DELAY_MIN, CONFIG.RESULT_DELAY_MAX);
     scheduleAuto(startNextTurn, delay);
   }
 
-  // 一時停止ボタンの処理
+  // ボーナスのカードを1枚選んだときの処理
+  function handleBonusPick(reward, cardEl, cardsArea){
+    if (answered) return;
+    answered = true;
+
+    cardEl.textContent = "🎉";
+    cardEl.classList.add("picked");
+    const allCards = cardsArea.querySelectorAll(".bonus-card");
+    allCards.forEach((c) => { c.disabled = true; });
+
+    playBonusSound();
+    state.combo += 1;
+    if (state.combo > state.bestCombo) state.bestCombo = state.combo;
+    state.score += reward.score;
+    state.currentStage = Math.min(CONFIG.MAP_LENGTH, state.currentStage + reward.steps);
+
+    saveState();
+    renderProgress();
+    renderResult(true, reward.label + "！");
+    renderStatusBar();
+
+    const delay = randInt(CONFIG.RESULT_DELAY_MIN, CONFIG.RESULT_DELAY_MAX);
+    scheduleAuto(startNextTurn, delay);
+  }
+
   function togglePause(){
     isPaused = !isPaused;
     const pauseBtn = document.getElementById("pauseBtn");
@@ -956,7 +1210,6 @@
 
     if (isPaused){
       pauseAutoTimer();
-      // 出題中の制限時間バーも、今の幅のまま止める
       if (questionTimerActive && timerInner){
         const currentWidthPx = timerInner.getBoundingClientRect().width;
         timerInner.style.transition = "none";
@@ -964,7 +1217,6 @@
       }
     } else {
       resumeAutoTimer();
-      // 出題中の制限時間バーも、止めた幅から再開する
       if (questionTimerActive && timerInner){
         const remaining = autoTimer.remainingMs;
         requestAnimationFrame(() => {
@@ -988,8 +1240,9 @@
       score: 0,
       combo: 0,
       bestCombo: 0,
-      muted: state.muted, // ミュート設定だけは引き継ぐ
+      muted: state.muted,
     };
+    bossHitsSoFar = 0;
     await saveState();
     startNextTurn();
   }
