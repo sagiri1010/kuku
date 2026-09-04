@@ -374,9 +374,12 @@
      連続正解」方式に変更。効果音の役割を「選んだ音」と「進む音」に分けた。
 
    【保存について】
-   window.storage を使い、今のマス位置・マップ内容・スコアを保存して
-   います。次回開いたときも続きから遊べます。「さいしょから」で
-   保存データを消してやり直せます。
+   今のマス位置・マップ内容・スコアを保存し、次回開いたときも続きから
+   遊べるようにしている。「さいしょから」で保存データを消してやり直せる。
+   保存先は環境によって自動で切り替わる:
+   ・Claudeの中で開いたとき → window.storage を使う
+   ・GitHub Pagesなど、外部で普通のWebページとして開いたとき
+     → ブラウザ標準の localStorage を使う(isClaudeStorageAvailable関数で判定)
    ※ボス戦の連続正解カウント(bossHitsSoFar)は保存していないため、
      ボス戦の途中でページを閉じると、次に開いたときは1問目からに
      なります(仕様上の割り切りです)。
@@ -509,14 +512,33 @@
 
   /* ---------------------------------------------------------------
      3. storage関連関数 : 保存・読み込み
+        -----------------------------------------------------------
+        このゲームは2つの場所で動くことを想定している。
+        ・Claudeの中でこのファイルを開いたとき → window.storage が使える
+        ・GitHub Pagesなど、外部で普通のWebページとして開いたとき
+          → window.storage は存在しないので、ブラウザ標準の
+            localStorage を代わりに使う。
+        isClaudeStorageAvailable() でどちらの環境か判定し、
+        以降の関数はその結果に応じて処理を振り分けている。
      --------------------------------------------------------------- */
+  function isClaudeStorageAvailable(){
+    return typeof window.storage !== "undefined"
+        && typeof window.storage.get === "function";
+  }
+
   async function loadState(){
     try{
-      const res = await window.storage.get(CONFIG.STORAGE_KEY);
-      if (res && res.value){
-        const data = JSON.parse(res.value);
-        if (data.version === CONFIG.SAVE_VERSION){
-          return data;
+      if (isClaudeStorageAvailable()){
+        const res = await window.storage.get(CONFIG.STORAGE_KEY);
+        if (res && res.value){
+          const data = JSON.parse(res.value);
+          if (data.version === CONFIG.SAVE_VERSION) return data;
+        }
+      } else {
+        const raw = localStorage.getItem(CONFIG.STORAGE_KEY);
+        if (raw){
+          const data = JSON.parse(raw);
+          if (data.version === CONFIG.SAVE_VERSION) return data;
         }
       }
     }catch(e){
@@ -527,7 +549,11 @@
 
   async function saveState(){
     try{
-      await window.storage.set(CONFIG.STORAGE_KEY, JSON.stringify(state));
+      if (isClaudeStorageAvailable()){
+        await window.storage.set(CONFIG.STORAGE_KEY, JSON.stringify(state));
+      } else {
+        localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(state));
+      }
     }catch(e){
       console.error("保存に失敗しました:", e);
     }
@@ -535,7 +561,11 @@
 
   async function clearState(){
     try{
-      await window.storage.delete(CONFIG.STORAGE_KEY);
+      if (isClaudeStorageAvailable()){
+        await window.storage.delete(CONFIG.STORAGE_KEY);
+      } else {
+        localStorage.removeItem(CONFIG.STORAGE_KEY);
+      }
     }catch(e){ /* もともと無い場合は無視してよい */ }
   }
 
