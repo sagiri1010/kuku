@@ -43,6 +43,38 @@
     max-width:520px;
   }
 
+  /* ---------- タイトル画面 ---------- */
+  .title-wrap{
+    min-height:70vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .title-card{
+    background: var(--color-card);
+    border-radius:24px;
+    padding:36px 28px;
+    text-align:center;
+    box-shadow:0 8px 0 rgba(0,0,0,0.12);
+    max-width:360px;
+  }
+  .title-emoji{
+    font-size:40px;
+    margin-bottom:8px;
+  }
+  .title-heading{
+    font-size:30px;
+    font-weight:800;
+    margin:0 0 12px;
+    color:var(--color-text);
+  }
+  .title-desc{
+    font-size:14px;
+    line-height:1.7;
+    color:#6B6255;
+    margin:0 0 24px;
+  }
+
   /* ---------- ヘッダー ---------- */
   .header{
     display:flex;
@@ -297,30 +329,46 @@
 <body>
 
 <div id="app">
-  <div class="header">
-    <h1>くくクエスト</h1>
-    <div class="header-buttons">
-      <button id="pauseBtn">⏸ 一時停止</button>
-      <button id="muteBtn">🔊 音</button>
-      <button id="resetBtn">さいしょから</button>
+
+  <!-- タイトル画面: ページを開くと最初にこれだけが表示される。
+       「あそぶ！」を押すと、この画面が隠れて実際のゲーム画面(gameScreen)が表示される。 -->
+  <div class="title-wrap" id="titleScreen">
+    <div class="title-card">
+      <div class="title-emoji">🗡️👑🎁</div>
+      <h1 class="title-heading">くくクエスト</h1>
+      <p class="title-desc">モンスターをたおしながら<br>九九を れんしゅうしよう！</p>
+      <button class="start-btn" id="playBtn">🎮 あそぶ！</button>
     </div>
   </div>
 
-  <div class="status-bar">
-    <span id="scoreText">スコア: 0</span>
-    <span id="comboText">れんぞく正解: 0</span>
-  </div>
-
-  <div class="progress-wrap">
-    <div class="progress-track" id="progressTrack"></div>
-    <div class="progress-label">
-      <span id="progressText">0 / 25 マス</span>
-      <span>👑ボス　🎁ボーナス</span>
+  <!-- ゲーム画面本体。最初は hidden クラスで隠しておき、
+       「あそぶ！」が押された後に initGameScreen() の中で表示する。 -->
+  <div id="gameScreen" class="hidden">
+    <div class="header">
+      <h1>くくクエスト</h1>
+      <div class="header-buttons">
+        <button id="pauseBtn">⏸ 一時停止</button>
+        <button id="muteBtn">🔊 音</button>
+        <button id="resetBtn">さいしょから</button>
+      </div>
     </div>
-  </div>
 
-  <div class="battle-wrap" id="battleWrap">
-    <div class="pause-overlay hidden" id="pauseOverlay">⏸ 一時停止中</div>
+    <div class="status-bar">
+      <span id="scoreText">スコア: 0</span>
+      <span id="comboText">れんぞく正解: 0</span>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-track" id="progressTrack"></div>
+      <div class="progress-label">
+        <span id="progressText">0 / 25 マス</span>
+        <span>👑ボス　🎁ボーナス</span>
+      </div>
+    </div>
+
+    <div class="battle-wrap" id="battleWrap">
+      <div class="pause-overlay hidden" id="pauseOverlay">⏸ 一時停止中</div>
+    </div>
   </div>
 </div>
 
@@ -349,7 +397,11 @@
        スコアなどの報酬がもらえる(ハズレなし)。
 
    【進行方法(自動進行+一時停止)】
-   ボタンを押さなくても自動で進みます。
+   ページを開くと、まずタイトル画面(「🎮 あそぶ！」ボタン)が表示される。
+   ボタンを押すとタイトル画面が隠れ、ゲーム画面(gameScreen)が表示されて
+   初期化(init関数)が始まる。読み込み中の中途半端な画面が一瞬見えて
+   しまうのを防ぐため、あえてボタンを押すまで初期化を始めていない。
+   ボタンを押すと、以下のように自動で進みます。
      モンスターが現れる → (少し待つ) → 問題(制限時間あり) → 答える
      → 結果表示 → (少し待つ) → 次のマスへ …
    (ボーナスマスだけは「カードを選ぶ」ところだけ手動タップが必要です)
@@ -1306,7 +1358,21 @@
     document.getElementById("pauseBtn").addEventListener("click", togglePause);
   }
 
-  init();
+  // ページを開いた直後に呼ばれる処理。
+  // ここでは「あそぶ！」ボタンにクリック処理を仕込むだけで、
+  // ゲーム本体の準備(init)はボタンが押されてから始める。
+  // こうすることで、読み込み中の中途半端な画面(空の進捗バーなど)が
+  // 一瞬映ってしまうのを防いでいる。
+  function setupTitleScreen(){
+    const playBtn = document.getElementById("playBtn");
+    playBtn.addEventListener("click", async () => {
+      document.getElementById("titleScreen").classList.add("hidden");
+      document.getElementById("gameScreen").classList.remove("hidden");
+      await init();
+    });
+  }
+
+  setupTitleScreen();
 
 </script>
 </body>
